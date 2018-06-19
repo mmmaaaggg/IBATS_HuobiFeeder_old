@@ -64,8 +64,8 @@ class MDMin1(BaseModel):
     count = Column(DOUBLE)
 
 
-class MDMin1FIllHistory(BaseModel):
-    __tablename__ = 'md_min1_bc_fill_history'
+class MDMin1Temp(BaseModel):
+    __tablename__ = 'md_min1_bc_temp'
     market = Column(String(10), primary_key=True)
     pair = Column(String(10), primary_key=True)
     ts_start = Column(TIMESTAMP, primary_key=True)
@@ -94,8 +94,8 @@ class MDMin60(BaseModel):
     count = Column(DOUBLE)
 
 
-class MDMin60FIllHistory(BaseModel):
-    __tablename__ = 'md_min60_bc_fill_history'
+class MDMin60Temp(BaseModel):
+    __tablename__ = 'md_min60_bc_temp'
     market = Column(String(10), primary_key=True)
     pair = Column(String(10), primary_key=True)
     ts_start = Column(TIMESTAMP, primary_key=True)
@@ -124,8 +124,8 @@ class MDMinDaily(BaseModel):
     count = Column(DOUBLE)
 
 
-class MDMinDailyFIllHistory(BaseModel):
-    __tablename__ = 'md_daily_bc_fill_history'
+class MDMinDailyTemp(BaseModel):
+    __tablename__ = 'md_daily_bc_temp'
     market = Column(String(10), primary_key=True)
     pair = Column(String(10), primary_key=True)
     ts_start = Column(TIMESTAMP, primary_key=True)

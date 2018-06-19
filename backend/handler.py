@@ -48,7 +48,14 @@ class SimpleHandler(baseHandler):
 
 class DBHandler(baseHandler):
 
-    def __init__(self, db_model=None, table_name=None):
+    def __init__(self, period, db_model=None, table_name=None):
+        """
+        接收数据，并插入到对应数据库
+        :param period: 周期
+        :param db_model: 模型
+        :param table_name: 表名
+        """
+        self.period = period
         if db_model is not None:
             self.table_name = db_model.__tablename__
             self.md_orm_table = db_model.__table__
@@ -66,7 +73,7 @@ class DBHandler(baseHandler):
         if 'ch' in msg:
             topic = msg.get('ch')
             _, pair, _, period = topic.split('.')
-            if period == '1min':
+            if period == self.period:
                 data = msg.get('tick')
                 # 调整相关属性
                 data['ts_start'] = datetime.fromtimestamp(data.pop('id'))
@@ -75,8 +82,8 @@ class DBHandler(baseHandler):
                 data['pair'] = pair
                 self.save_md(data)
                 self.logger.debug('invoke save_md %s', data)
-            else:
-                self.logger.info(msg)
+            # else:
+            #     self.logger.info(msg)
 
         elif 'rep' in msg:
             topic = msg.get('rep')
@@ -85,7 +92,7 @@ class DBHandler(baseHandler):
         else:
             self.logger.warning(msg)
 
-    @ProducerConsumer(threshold=1000, interval=20, pass_arg_list=True, is_class_method=True)
+    @ProducerConsumer(threshold=1000, interval=60, pass_arg_list=True, is_class_method=True)
     def save_md(self, data_dic_list):
         """
         保存md数据到数据库及文件
@@ -117,7 +124,7 @@ class PublishHandler(baseHandler):
         self.market = market
         self.logger = logging.getLogger(self.__class__.__name__)
         self.r = get_redis()
-        # 记录上一个tick的 st_start 用于判断是否开始分钟切换
+        # 记录上一个tick的 st_start 用于判断是否开始分钟切换，key 是 (period, pair)
         self.last_ts_start_pair_tick = {}
         self.last_tick_pair_tick = {}
 
@@ -138,31 +145,30 @@ class PublishHandler(baseHandler):
         if 'ch' in msg:
             topic = msg.get('ch')
             _, pair, _, period = topic.split('.')
+            data = msg.get('tick')
+            # 调整相关属性
+            ts_start = datetime.fromtimestamp(data.pop('id'))
+            data['ts_start'] = datetime_2_str(ts_start, format=STR_FORMAT_DATETIME2)
+            data['market'] = 'huobi'
+            data['ts_curr'] = datetime_2_str(datetime.fromtimestamp(msg['ts'] / 1000), format=STR_FORMAT_DATETIME2)
+            data['pair'] = pair
+            # Json
+            md_str = json.dumps(data)
+
+            # 先发送Tick数据
             if period == '1min':
-                data = msg.get('tick')
-                # 调整相关属性
-                ts_start = datetime.fromtimestamp(data.pop('id'))
-                # TODO: 需要转换一下 ts 到 str
-                data['ts_start'] = datetime_2_str(ts_start, format=STR_FORMAT_DATETIME2)
-                data['market'] = 'huobi'
-                data['ts_curr'] = datetime_2_str(datetime.fromtimestamp(msg['ts'] / 1000), format=STR_FORMAT_DATETIME2)
-                data['pair'] = pair
-                # Json
-                md_str = json.dumps(data)
-                # 先发送Tick数据
                 channel = f'md.{self.market}.tick.{pair}'
                 self.r.publish(channel, md_str)
-                # 分钟线切换时发送分钟线数据
-                ts_start_last = self.last_ts_start_pair_tick.setdefault(pair, None)
-                if ts_start_last is not None and ts_start_last != ts_start:
-                    md_str_last = self.last_tick_pair_tick
-                    channel_min1 = f'md.{self.market}.1min.{pair}'
-                    self.r.publish(channel_min1, md_str_last)
 
-                self.last_ts_start_pair_tick[pair] = ts_start
-                self.last_tick_pair_tick = md_str
-            else:
-                self.logger.info(msg)
+            # 分钟线切换时发送分钟线数据
+            ts_start_last = self.last_ts_start_pair_tick.setdefault((period, pair), None)
+            if ts_start_last is not None and ts_start_last != ts_start:
+                md_str_last = self.last_tick_pair_tick[(period, pair)]
+                channel_min1 = f'md.{self.market}.{period}.{pair}'
+                self.r.publish(channel_min1, md_str_last)
+
+            self.last_ts_start_pair_tick[(period, pair)] = ts_start
+            self.last_tick_pair_tick[(period, pair)] = md_str
 
         elif 'rep' in msg:
             # topic = msg.get('rep')

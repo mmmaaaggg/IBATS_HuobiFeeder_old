@@ -104,6 +104,7 @@ class DBHandler(baseHandler):
             self.session = self.session_maker()
         try:
             self.session.execute(self.md_orm_table_insert, data_dic_list)
+            self.session.commit()
             self.logger.info('%d 条数据保存到 %s 完成', md_count, self.table_name)
         except:
             self.logger.exception('%d 条数据保存到 %s 失败', md_count, self.table_name)

@@ -1,0 +1,12 @@
+certifi==2018.4.16
+chardet==3.0.4
+huobitrade==0.1.9
+idna==2.6
+pymongo==3.6.1
+python-dateutil==2.7.3
+pyzmq==17.0.0
+requests==2.18.4
+six==1.11.0
+SQLAlchemy==1.2.8
+urllib3==1.22
+websocket-client==0.48.0

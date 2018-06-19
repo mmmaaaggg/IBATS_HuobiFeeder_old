@@ -43,8 +43,8 @@ class ConfigBase:
 
 
 class ConfigTest(ConfigBase):
-    EXCHANGE_ACCESS_KEY = 'aaa1d1b8-acfed9be-56679582-3ff79'
-    EXCHANGE_SECRET_KEY = 'b6d59b43-3013d530-89874d7e-c0bf4'
+    EXCHANGE_ACCESS_KEY = '****'
+    EXCHANGE_SECRET_KEY = '****'
 
     # DB_URL_DIC = {
     #     ConfigBase.DB_SCHEMA_MD: 'mysql://mg:****@10.0.3.66/bc_md'

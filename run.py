@@ -13,8 +13,8 @@ from agent.md_supplier import start_supplier
 
 
 if __name__ == "__main__":
-    init()
+    init(True)
 
-    supplier = start_supplier()
+    supplier = start_supplier(do_fill_history=True)
     while supplier.is_alive():
         time.sleep(1)

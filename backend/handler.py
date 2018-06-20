@@ -48,7 +48,7 @@ class SimpleHandler(baseHandler):
 
 class DBHandler(baseHandler):
 
-    def __init__(self, period, db_model=None, table_name=None):
+    def __init__(self, period, db_model=None, table_name=None, save_tick=False):
         """
         接收数据，并插入到对应数据库
         :param period: 周期
@@ -56,6 +56,7 @@ class DBHandler(baseHandler):
         :param table_name: 表名
         """
         self.period = period
+        self.save_tick = save_tick
         if db_model is not None:
             self.table_name = db_model.__tablename__
             self.md_orm_table = db_model.__table__
@@ -68,6 +69,7 @@ class DBHandler(baseHandler):
 
         self.logger = logging.getLogger(self.table_name)
         self.md_orm_table_insert = self.md_orm_table.insert(on_duplicate_key_update=True)
+        self.last_tick, self.ts_start_last_tick = {}, {}
 
     def handle(self, msg):
         if 'ch' in msg:
@@ -75,13 +77,30 @@ class DBHandler(baseHandler):
             _, pair, _, period = topic.split('.')
             if period == self.period:
                 data = msg.get('tick')
-                # 调整相关属性
-                data['ts_start'] = datetime.fromtimestamp(data.pop('id'))
-                data['market'] = Config.MARKET_NAME
-                data['ts_curr'] = datetime.fromtimestamp(msg['ts'] / 1000)
-                data['pair'] = pair
-                self.save_md(data)
-                self.logger.debug('invoke save_md %s', data)
+                ts_start = datetime.fromtimestamp(data.pop('id'))
+                data['ts_start'] = ts_start
+                # 为了提高运行效率
+                # 1）降低不必要的对 data 字典的操作
+                # 2）降低不必要的数据库重复数据插入请求，保存前进行一次重复检查
+                if self.save_tick or pair not in self.ts_start_last_tick:
+                    # 调整相关属性
+                    data['market'] = Config.MARKET_NAME
+                    data['ts_curr'] = datetime.fromtimestamp(msg['ts'] / 1000)
+                    data['pair'] = pair
+                    self.save_md(data)
+                    self.logger.debug('invoke save_md %s', data)
+                else:
+                    if ts_start != self.ts_start_last_tick[pair]:
+                        data_last_tick, ts_last_tick = self.last_tick[pair]
+                        # 调整相关属性
+                        data_last_tick['market'] = Config.MARKET_NAME
+                        data_last_tick['ts_curr'] = datetime.fromtimestamp(ts_last_tick / 1000)
+                        data_last_tick['pair'] = pair
+                        self.save_md(data_last_tick)
+                        self.logger.debug('invoke save_md %s', data_last_tick)
+
+                self.last_tick[pair] = (data, msg['ts'])
+                self.ts_start_last_tick[pair] = ts_start
             # else:
             #     self.logger.info(msg)
 

@@ -21,7 +21,7 @@ BaseModel = declarative_base()
 
 class SymbolPair(BaseModel):
     __tablename__ = 'symbol_pair_info'
-    id = Column(Integer, autoincrement=True)
+    id = Column(Integer, autoincrement=True, unique=True)
     market = Column(String(10), primary_key=True)
     base_currency = Column(String(10), primary_key=True)
     quote_currency = Column(String(10), primary_key=True)
@@ -155,6 +155,9 @@ def init(alter_table=False):
                 sql_str = "ALTER TABLE %s ENGINE = MyISAM" % table_name
                 session.execute(sql_str)
 
+            # This is an issue  https://www.mail-archive.com/sqlalchemy@googlegroups.com/msg19744.html
+            session.execute(f"ALTER TABLE {SymbolPair.__tablename__} CHANGE COLUMN `id` `id` INT(11) NULL AUTO_INCREMENT")
+            session.commit()
             # This is an issue  https://www.mail-archive.com/sqlalchemy@googlegroups.com/msg19744.html
             session.execute(f"ALTER TABLE {MDTick.__tablename__} CHANGE COLUMN `id` `id` INT(11) NULL AUTO_INCREMENT")
             session.commit()

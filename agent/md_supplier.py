@@ -32,11 +32,11 @@ setKey(Config.EXCHANGE_ACCESS_KEY, Config.EXCHANGE_SECRET_KEY)
 class MDSupplier(Thread):
     """接受订阅数据想redis发送数据"""
 
-    def __init__(self, do_fill_history=False):
+    def __init__(self, init_symbols=False, do_fill_history=False):
         super().__init__(name='huobi websocket', daemon=True)
         self.hb = HBWebsocket()
         self.api = HBRestAPI()
-        self.init_symbols = False
+        self.init_symbols = init_symbols
         self.logger = logging.getLogger(self.__class__.__name__)
         self.do_fill_history = do_fill_history
 
@@ -45,9 +45,9 @@ class MDSupplier(Thread):
         # self.md_orm_table = MDMin1Temp.__table__
         # self.md_orm_table_insert = self.md_orm_table.insert(on_duplicate_key_update=True)
 
-    def init(self, periods=['1min', '60min', '1day'], init_symbols=False):
+    def init(self, periods=['1min', '60min', '1day']):
 
-        if init_symbols or self.init_symbols:
+        if self.init_symbols:
             # 获取有效的交易对信息保存（更新）数据库
             ret = self.api.get_symbols()
             key_mapping = {
@@ -79,7 +79,7 @@ class MDSupplier(Thread):
 
         # handler = SimpleHandler('simple handler')
         # Tick 数据插入
-        handler = DBHandler(period='1min', db_model=MDTick)
+        handler = DBHandler(period='1min', db_model=MDTick, save_tick=True)
         self.hb.register_handler(handler)
         time.sleep(1)
         # 其他周期数据插入
@@ -93,7 +93,7 @@ class MDSupplier(Thread):
             else:
                 self.logger.warning(f'{period} 不是有效的周期')
                 continue
-            handler = DBHandler(period=period, db_model=db_model)
+            handler = DBHandler(period=period, db_model=db_model, save_tick=False)
             self.hb.register_handler(handler)
             time.sleep(1)
 
@@ -106,7 +106,7 @@ class MDSupplier(Thread):
         self.hb.run()
         self.logger.info('启动')
         # 补充历史数据
-        if self.fill_history:
+        if self.do_fill_history:
             self.logger.info('开始补充历史数据')
             self.fill_history()
         while True:
@@ -123,18 +123,19 @@ class MDSupplier(Thread):
             else:
                 self.logger.warning(f'{period} 不是有效的周期')
 
-            self.fill_history_period(model_tot, model_tmp)
+            self.fill_history_period(period, model_tot, model_tmp)
 
-    def fill_history_period(self, model_tot, model_tmp):
+    def fill_history_period(self, period, model_tot, model_tmp):
         """
         根据数据库中的支持 symbol 补充历史数据
+        :param period:
         :param model_tot:
         :param model_tmp:
         :return:
         """
         with with_db_session(engine_md) as session:
             data = session.query(SymbolPair).filter(
-                SymbolPair.market == Config.MARKET_NAME, SymbolPair.symbol_partition == 'main').all()
+                SymbolPair.market == Config.MARKET_NAME).all()  # , SymbolPair.symbol_partition == 'main'
             pair_datetime_latest_dic = dict(
                 session.query(
                     model_tmp.pair, func.max(model_tmp.ts_start)
@@ -146,10 +147,21 @@ class MDSupplier(Thread):
             pair = f'{symbol_info.base_currency}{symbol_info.quote_currency}'
             if pair in pair_datetime_latest_dic:
                 datetime_latest = pair_datetime_latest_dic[pair]
-                size = min([2000, int((datetime.now() - datetime_latest).seconds / 60 * 2)])
+                if period == '1min':
+                    second_of_period = 60
+                elif period == '60min':
+                    second_of_period = 60 * 60
+                elif period == '1day':
+                    second_of_period = 60 * 60 * 24
+                else:
+                    self.logger.warning(f'{period} 不是有效的周期')
+                    continue
+                size = min([2000, int((datetime.now() - datetime_latest).seconds / second_of_period * 2)])
             else:
                 size = 2000
-            ret = self.api.get_kline(pair, '1min', size=size)
+            if size <= 0:
+                continue
+            ret = self.api.get_kline(pair, period, size=size)
             if ret['status'] == 'ok':
                 data_list = ret['data']
                 data_dic_list = []
@@ -212,7 +224,7 @@ class MDSupplier(Thread):
 
 
 def start_supplier(init_symbols=False, do_fill_history=False) -> MDSupplier:
-    supplier = MDSupplier(do_fill_history=do_fill_history)
-    supplier.init(init_symbols=init_symbols)
+    supplier = MDSupplier(init_symbols=init_symbols, do_fill_history=do_fill_history)
+    supplier.init()
     supplier.start()
     return supplier

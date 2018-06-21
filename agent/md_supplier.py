@@ -21,7 +21,6 @@ from threading import Thread
 from backend.orm import MDTick, MDMin1, MDMin1Temp, MDMin60, MDMin60Temp, MDMinDaily, MDMinDailyTemp
 from backend.handler import DBHandler, PublishHandler
 from sqlalchemy import func
-from sqlalchemy.orm import aliased
 
 
 logger = logging.getLogger()
@@ -73,8 +72,8 @@ class MDSupplier(Thread):
             for pair, period in itertools.product(available_pairs, periods):
                 self.hb.sub_dict[pair+period] = {'id': '', 'topic': f'market.{pair}.kline.{period}'}
         else:
-            self.hb.sub_dict['ethbtc'] = {'id': '', 'topic': 'market.ethbtc.kline.1min'}
-            self.hb.sub_dict['ethusdt'] = {'id': '', 'topic': 'market.ethusdt.kline.1min'}
+            self.hb.sub_dict['ethbtc60'] = {'id': '', 'topic': 'market.ethbtc.kline.60min'}
+            # self.hb.sub_dict['ethusdt'] = {'id': '', 'topic': 'market.ethusdt.kline.1min'}
             self.hb.sub_dict['ethusdt60'] = {'id': '', 'topic': 'market.ethusdt.kline.60min'}
 
         # handler = SimpleHandler('simple handler')
@@ -84,23 +83,68 @@ class MDSupplier(Thread):
         time.sleep(1)
         # 其他周期数据插入
         for period in periods:
+            save_tick = False
             if period == '1min':
                 db_model = MDMin1
             elif period == '60min':
                 db_model = MDMin60
+                # save_tick = True
             elif period == '1day':
                 db_model = MDMinDaily
             else:
                 self.logger.warning(f'{period} 不是有效的周期')
                 continue
-            handler = DBHandler(period=period, db_model=db_model, save_tick=False)
+            handler = DBHandler(period=period, db_model=db_model, save_tick=save_tick)
             self.hb.register_handler(handler)
             time.sleep(1)
 
         # 数据redis广播
         handler = PublishHandler(market=Config.MARKET_NAME)
         self.hb.register_handler(handler)
-        logger.info("api.get_timestamp %s", self.api.get_timestamp())
+        server_datetime = self.get_server_datetime()
+        logger.info("api.服务期时间 %s 与本地时间差： %f 秒",
+                    server_datetime, (datetime.now() - server_datetime).total_seconds())
+        self.check_state()
+
+    def check_state(self):
+        self.check_accounts()
+        data = self.get_balance()
+        for bal in data:
+            self.logger.info(f"{bal['currency']} : {bal['balance']}")
+
+    def get_server_datetime(self):
+        ret_data = self.api.get_timestamp()
+        server_datetime = datetime.fromtimestamp(ret_data['data']/1000)
+        return server_datetime
+
+    def get_accounts(self):
+        ret_data = self.api.get_accounts()
+
+        account_info = [acc for acc in ret_data['data']]
+        return account_info
+
+    def check_accounts(self):
+        account_info = self.get_accounts()
+        is_ok = True
+        for acc in account_info:
+            if acc['state'] != 'working':
+                self.logger.error(f'账户[%d] %s %s 状态异常：%s',
+                                  acc['id'], acc['type'], acc['subtype'], acc['state'])
+                is_ok = False
+        return is_ok
+
+    def get_balance(self, no_zero_only=True):
+        ret_data = self.api.get_balance()
+        acc_balance = ret_data['data']['list']
+        if no_zero_only:
+            ret_acc_balance = [balance for balance in acc_balance if balance['balance'] != '0']
+        else:
+            ret_acc_balance = acc_balance
+        return ret_acc_balance
+
+    def get_orders_info(self, symbol, states='submitted'):
+        ret_data = self.api.get_orders_info(symbol=symbol, states=states)
+        return ret_data['data']
 
     def run(self):
         self.hb.run()
@@ -198,7 +242,7 @@ class MDSupplier(Thread):
             try:
                 # session.execute(self.md_orm_table_insert, data_dic_list)
                 session.execute(model_tmp.__table__.insert(on_duplicate_key_update=True), data_dic_list)
-                self.logger.info('%d 条数据保存到 %s 完成', md_count, model_tmp.__tablename__)
+                self.logger.info('%d 条 %s 数据保存到 %s 完成', md_count, pair, model_tmp.__tablename__)
                 sql_str = f"""insert into {model_tot.__tablename__} select * from {model_tmp.__tablename__} 
                 where market=:market and pair=:pair 
                 ON DUPLICATE KEY UPDATE open=VALUES(open), high=VALUES(high), low=VALUES(low), close=VALUES(close)
@@ -217,10 +261,10 @@ class MDSupplier(Thread):
                     model_tmp.pair == pair,
                     model_tmp.ts_start < datetime_latest
                 ).delete()
-                self.logger.debug('%d 条历史数据被清理，最新数据日期 %s', delete_count, datetime_latest)
+                self.logger.debug('%d 条 %s 历史数据被清理，最新数据日期 %s', delete_count, pair, datetime_latest)
                 session.commit()
             except:
-                self.logger.exception('%d 条数据保存到 %s 失败', md_count, model_tot.__tablename__)
+                self.logger.exception('%d 条 %s 数据保存到 %s 失败', md_count, pair, model_tot.__tablename__)
 
 
 def start_supplier(init_symbols=False, do_fill_history=False) -> MDSupplier:

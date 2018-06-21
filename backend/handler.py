@@ -14,7 +14,7 @@ from utils.fh_utils import datetime_2_str, STR_FORMAT_DATETIME2
 from datetime import datetime
 from sqlalchemy import Table, MetaData
 from sqlalchemy.orm import sessionmaker
-from backend.redis import get_redis
+from utils.redis import get_redis
 import json
 from config import Config
 from backend import engine_md
@@ -67,7 +67,7 @@ class DBHandler(baseHandler):
         self.session_maker = sessionmaker(bind=engine_md)
         self.session = None
 
-        self.logger = logging.getLogger(self.table_name)
+        self.logger = logging.getLogger(f'DBHandler->{self.table_name}')
         self.md_orm_table_insert = self.md_orm_table.insert(on_duplicate_key_update=True)
         self.last_tick, self.ts_start_last_tick = {}, {}
 
@@ -90,14 +90,17 @@ class DBHandler(baseHandler):
                     self.save_md(data)
                     self.logger.debug('invoke save_md %s', data)
                 else:
+                    # self.logger.info('ts_start: %s ts_start_last_tick[pair]:%s',
+                    #                  ts_start, self.ts_start_last_tick[pair])
                     if ts_start != self.ts_start_last_tick[pair]:
+                        # self.logger.info('different')
                         data_last_tick, ts_last_tick = self.last_tick[pair]
                         # 调整相关属性
                         data_last_tick['market'] = Config.MARKET_NAME
                         data_last_tick['ts_curr'] = datetime.fromtimestamp(ts_last_tick / 1000)
                         data_last_tick['pair'] = pair
                         self.save_md(data_last_tick)
-                        self.logger.debug('invoke save_md %s', data_last_tick)
+                        self.logger.debug('invoke save_md last_tick %s', data_last_tick)
 
                 self.last_tick[pair] = (data, msg['ts'])
                 self.ts_start_last_tick[pair] = ts_start
@@ -119,6 +122,9 @@ class DBHandler(baseHandler):
         :param session:
         :return:
         """
+        # 仅调试使用
+        # if self.table_name == 'md_min60_bc':
+        # self.logger.info('%d data will be save to %s', len(data_dic_list), self.table_name)
 
         if data_dic_list is None or len(data_dic_list) == 0:
             self.logger.warning("data_dic_list 为空")
@@ -161,6 +167,7 @@ class PublishHandler(baseHandler):
         :param msg:
         :return:
         """
+        # TODO: 设定一个定期检查机制，只发送订阅的品种，降低网络负载
         if 'ch' in msg:
             topic = msg.get('ch')
             _, pair, _, period = topic.split('.')

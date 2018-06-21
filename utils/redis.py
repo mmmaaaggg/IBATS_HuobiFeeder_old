@@ -10,6 +10,7 @@
 from redis import StrictRedis, ConnectionPool
 from redis.client import PubSub
 from config import Config
+
 _redis_client_dic = {}
 
 

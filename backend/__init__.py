@@ -7,7 +7,7 @@
 @contact : mmmaaaggg@163.com
 @desc    : 
 """
-from sqlalchemy import create_engine, MetaData
+from sqlalchemy import create_engine
 from config import Config
 
 engines = {key: create_engine(url) for key, url in Config.DB_URL_DIC.items()}

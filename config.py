@@ -8,12 +8,10 @@ from logging.handlers import RotatingFileHandler
 
 
 class ConfigBase:
-    # 配置环境变量
-    DATETIME_FORMAT_STR = '%Y-%m-%d %H:%M:%S'
-    DATE_FORMAT_STR = '%Y-%m-%d'
-    TIME_FORMAT_STR = '%H:%M:%S'
-    DATE_FORMAT_STR_CTP = '%Y%m%d'
-    TIME_FORMAT_STR_CTP = '%H%M%S'
+
+    # 交易所名称
+    MARKET_NAME = 'huobi'
+
     # api configuration
     EXCHANGE_ACCESS_KEY = ""
     EXCHANGE_SECRET_KEY = ""
@@ -21,7 +19,7 @@ class ConfigBase:
     # mysql db info
     DB_SCHEMA_MD = 'bc_md'
     DB_URL_DIC = {
-        DB_SCHEMA_MD: 'mysqldb://mg:****@10.0.3.66/' + DB_SCHEMA_MD
+        DB_SCHEMA_MD: 'mysql://mg:****@10.0.3.66/' + DB_SCHEMA_MD
     }
 
     # redis info
@@ -36,19 +34,16 @@ class ConfigBase:
         """
         初始化一些基本配置信息
         """
-        # 设置rest调用日志输出级别
-        logging.getLogger('requests.packages.urllib3.connectionpool').setLevel(logging.WARNING)
-        logging.getLogger('md_min1_bc').setLevel(logging.INFO)
-        logging.getLogger('md_min1_tick_bc').setLevel(logging.INFO)
+        pass
 
 
 class ConfigTest(ConfigBase):
     EXCHANGE_ACCESS_KEY = '****'
     EXCHANGE_SECRET_KEY = '****'
 
-    # DB_URL_DIC = {
-    #     ConfigBase.DB_SCHEMA_MD: 'mysql://mg:****@10.0.3.66/bc_md'
-    # }
+    DB_URL_DIC = {
+        ConfigBase.DB_SCHEMA_MD: 'mysql://mg:****@10.0.3.66/' + ConfigBase.DB_SCHEMA_MD
+    }
 
 
 # 测试配置（测试行情库）
@@ -58,9 +53,16 @@ Config = ConfigTest()
 
 # 设定默认日志格式
 logging.basicConfig(level=logging.DEBUG, format=Config.LOG_FORMAT)
+# 设置rest调用日志输出级别
 # logging.getLogger('requests.packages.urllib3.connectionpool').setLevel(logging.WARNING)
-# logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
-
+logging.getLogger('urllib3.connectionpool').setLevel(logging.INFO)
+logging.getLogger('DBHandler->md_min1_tick_bc').setLevel(logging.INFO)
+logging.getLogger('DBHandler->md_min1_bc').setLevel(logging.INFO)
+logging.getLogger('DBHandler->md_min60_bc').setLevel(logging.INFO)
+logging.getLogger('DBHandler->md_daily_bc').setLevel(logging.INFO)
+logging.getLogger('MDSupplier').setLevel(logging.INFO)
+# logging.getLogger('md_min1_bc').setLevel(logging.INFO)
+# logging.getLogger('md_min1_tick_bc').setLevel(logging.INFO)
 
 # 配置文件日至
 handler = RotatingFileHandler('log.log', maxBytes=10 * 1024 * 1024, backupCount=5)

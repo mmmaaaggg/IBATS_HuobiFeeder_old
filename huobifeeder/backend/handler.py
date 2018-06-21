@@ -10,14 +10,14 @@
 import logging
 from huobitrade.handler import baseHandler
 from prodconpattern import ProducerConsumer
-from utils.fh_utils import datetime_2_str, STR_FORMAT_DATETIME2
+from huobifeeder.utils import datetime_2_str, STR_FORMAT_DATETIME2
 from datetime import datetime
 from sqlalchemy import Table, MetaData
 from sqlalchemy.orm import sessionmaker
-from utils.redis import get_redis
+from huobifeeder.utils import get_redis
 import json
 from config import Config
-from backend import engine_md
+from huobifeeder.backend import engine_md
 logger = logging.getLogger()
 
 

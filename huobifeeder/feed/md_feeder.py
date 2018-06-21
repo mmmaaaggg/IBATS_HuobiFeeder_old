@@ -13,13 +13,13 @@ import itertools
 from huobitrade.service import HBWebsocket, HBRestAPI
 from huobitrade import setKey
 from config import Config
-from backend import engine_md
-from utils.db_utils import with_db_session
-from backend.orm import SymbolPair
+from huobifeeder.backend import engine_md
+from huobifeeder.utils import with_db_session
+from huobifeeder.backend.orm import SymbolPair
 import time
 from threading import Thread
-from backend.orm import MDTick, MDMin1, MDMin1Temp, MDMin60, MDMin60Temp, MDMinDaily, MDMinDailyTemp
-from backend.handler import DBHandler, PublishHandler
+from huobifeeder.backend.orm import MDTick, MDMin1, MDMin1Temp, MDMin60, MDMin60Temp, MDMinDaily, MDMinDailyTemp
+from huobifeeder.backend.handler import DBHandler, PublishHandler
 from sqlalchemy import func
 
 

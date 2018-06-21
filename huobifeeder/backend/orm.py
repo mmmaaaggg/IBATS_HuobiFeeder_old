@@ -7,12 +7,11 @@
 @contact : mmmaaaggg@163.com
 @desc    :
 """
-from sqlalchemy import MetaData, Table, Column, Integer, String, DateTime, Float, Boolean, SmallInteger, Date, Time, \
-    UniqueConstraint, TIMESTAMP
+from sqlalchemy import Column, Integer, String, UniqueConstraint, TIMESTAMP
 from sqlalchemy.dialects.mysql import DOUBLE
 from sqlalchemy.ext.declarative import declarative_base
-from utils.db_utils import with_db_session
-from backend import engine_md
+from huobifeeder.utils import with_db_session
+from huobifeeder.backend import engine_md
 from config import Config
 import logging
 logger = logging.getLogger()

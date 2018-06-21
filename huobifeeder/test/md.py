@@ -8,13 +8,10 @@
 @desc    : 
 """
 import logging
-from huobitrade.service import HBWebsocket, HBRestAPI
+from huobitrade.service import HBWebsocket
 from huobitrade.handler import baseHandler
 from huobitrade import setKey
 from config import Config
-from backend import engine_md
-from utils.db_utils import with_db_session
-from backend.orm import SymbolPair
 import time
 logger = logging.getLogger()
 setKey(Config.EXCHANGE_ACCESS_KEY, Config.EXCHANGE_SECRET_KEY)

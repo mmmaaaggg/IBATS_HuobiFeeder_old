@@ -9,7 +9,7 @@
 """
 import time
 from backend.orm import init
-from agent.md_supplier import start_supplier
+from feed.md_feeder import start_supplier
 
 
 if __name__ == "__main__":

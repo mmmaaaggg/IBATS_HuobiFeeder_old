@@ -28,7 +28,7 @@ logger = logging.getLogger()
 setKey(Config.EXCHANGE_ACCESS_KEY, Config.EXCHANGE_SECRET_KEY)
 
 
-class MDSupplier(Thread):
+class MDFeeder(Thread):
     """接受订阅数据想redis发送数据"""
 
     def __init__(self, init_symbols=False, do_fill_history=False):
@@ -267,8 +267,8 @@ class MDSupplier(Thread):
                 self.logger.exception('%d 条 %s 数据保存到 %s 失败', md_count, pair, model_tot.__tablename__)
 
 
-def start_supplier(init_symbols=False, do_fill_history=False) -> MDSupplier:
-    supplier = MDSupplier(init_symbols=init_symbols, do_fill_history=do_fill_history)
+def start_supplier(init_symbols=False, do_fill_history=False) -> MDFeeder:
+    supplier = MDFeeder(init_symbols=init_symbols, do_fill_history=do_fill_history)
     supplier.init()
     supplier.start()
     return supplier

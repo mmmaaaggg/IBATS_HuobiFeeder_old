@@ -45,7 +45,15 @@ class MDFeeder(Thread):
         # self.md_orm_table = MDMin1Temp.__table__
         # self.md_orm_table_insert = self.md_orm_table.insert(on_duplicate_key_update=True)
 
-    def init(self, periods=['1min', '60min', '1day']):
+    def init(self, periods=['1min', '60min', '1day'], symbol_partition_set={'main', 'innovation', 'bifurcation'}):
+        """
+        初始化，订阅行情
+        默认1分钟、1小时、1日
+        包含 {'main', 'innovation', 'bifurcation'} 全部币种
+        :param periods:
+        :param symbol_partition_set:
+        :return:
+        """
 
         if self.init_symbols:
             # 获取有效的交易对信息保存（更新）数据库
@@ -67,7 +75,7 @@ class MDFeeder(Thread):
                 session.execute(SymbolPair.__table__.insert(on_duplicate_key_update=True), data_dic_list)
 
             available_pairs = [d['base_currency'] + d['quote_currency']
-                               for d in data_dic_list if d['symbol_partition'] == 'main']
+                               for d in data_dic_list if d['symbol_partition'] in symbol_partition_set]
 
             # 通过 on_open 方式进行订阅总是无法成功
             for pair, period in itertools.product(available_pairs, periods):

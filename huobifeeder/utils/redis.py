@@ -14,9 +14,12 @@ from abat.common import PeriodType
 _redis_client_dic = {}
 
 
-def get_channel(market=None, period: PeriodType=PeriodType.Mon1, symbol=''):
+def get_channel(market=None, period: PeriodType=PeriodType.Min1, symbol=''):
     """
     'md.{market}.{period}.{symbol}' or 'md.{period}.{symbol}'
+    例如：
+    md.huobi.Min1.ethusdt
+    md.huobi.Tick.eosusdt
     通过 redis-cli 可以 PUBSUB CHANNELS 查阅活跃的频道
     :param market:
     :param period:

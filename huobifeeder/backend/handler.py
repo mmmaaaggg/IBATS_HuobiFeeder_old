@@ -8,13 +8,14 @@
 @desc    : 
 """
 import logging
+from abat.common import PeriodType
 from huobitrade.handler import baseHandler
 from prodconpattern import ProducerConsumer
-from huobifeeder.utils import datetime_2_str, STR_FORMAT_DATETIME2
+from huobifeeder.utils.fh_utils import datetime_2_str, STR_FORMAT_DATETIME2
 from datetime import datetime
 from sqlalchemy import Table, MetaData
 from sqlalchemy.orm import sessionmaker
-from huobifeeder.utils import get_redis
+from huobifeeder.utils.redis import get_redis, get_channel
 import json
 from config import Config
 from huobifeeder.backend import engine_md
@@ -27,7 +28,7 @@ class SimpleHandler(baseHandler):
         if 'ch' in msg:
             # logging.info("msg:%s", msg)
             topic = msg.get('ch')
-            _, pair, _, period = topic.split('.')
+            _, symbol, _, period = topic.split('.')
             if period == '1min':
                 data = msg.get('tick')
                 # 调整相关属性
@@ -74,7 +75,7 @@ class DBHandler(baseHandler):
     def handle(self, msg):
         if 'ch' in msg:
             topic = msg.get('ch')
-            _, pair, _, period = topic.split('.')
+            _, symbol, _, period = topic.split('.')
             if period == self.period:
                 data = msg.get('tick')
                 ts_start = datetime.fromtimestamp(data.pop('id'))
@@ -82,28 +83,28 @@ class DBHandler(baseHandler):
                 # 为了提高运行效率
                 # 1）降低不必要的对 data 字典的操作
                 # 2）降低不必要的数据库重复数据插入请求，保存前进行一次重复检查
-                if self.save_tick or pair not in self.ts_start_last_tick:
+                if self.save_tick or symbol not in self.ts_start_last_tick:
                     # 调整相关属性
                     data['market'] = Config.MARKET_NAME
                     data['ts_curr'] = datetime.fromtimestamp(msg['ts'] / 1000)
-                    data['pair'] = pair
+                    data['symbol'] = symbol
                     self.save_md(data)
                     self.logger.debug('invoke save_md %s', data)
                 else:
                     # self.logger.info('ts_start: %s ts_start_last_tick[pair]:%s',
                     #                  ts_start, self.ts_start_last_tick[pair])
-                    if ts_start != self.ts_start_last_tick[pair]:
+                    if ts_start != self.ts_start_last_tick[symbol]:
                         # self.logger.info('different')
-                        data_last_tick, ts_last_tick = self.last_tick[pair]
+                        data_last_tick, ts_last_tick = self.last_tick[symbol]
                         # 调整相关属性
                         data_last_tick['market'] = Config.MARKET_NAME
                         data_last_tick['ts_curr'] = datetime.fromtimestamp(ts_last_tick / 1000)
-                        data_last_tick['pair'] = pair
+                        data_last_tick['symbol'] = symbol
                         self.save_md(data_last_tick)
                         self.logger.debug('invoke save_md last_tick %s', data_last_tick)
 
-                self.last_tick[pair] = (data, msg['ts'])
-                self.ts_start_last_tick[pair] = ts_start
+                self.last_tick[symbol] = (data, msg['ts'])
+                self.ts_start_last_tick[symbol] = ts_start
             # else:
             #     self.logger.info(msg)
 
@@ -170,31 +171,53 @@ class PublishHandler(baseHandler):
         # TODO: 设定一个定期检查机制，只发送订阅的品种，降低网络负载
         if 'ch' in msg:
             topic = msg.get('ch')
-            _, pair, _, period = topic.split('.')
+            _, symbol, _, period_str = topic.split('.')
             data = msg.get('tick')
             # 调整相关属性
             ts_start = datetime.fromtimestamp(data.pop('id'))
             data['ts_start'] = datetime_2_str(ts_start, format=STR_FORMAT_DATETIME2)
             data['market'] = 'huobi'
             data['ts_curr'] = datetime_2_str(datetime.fromtimestamp(msg['ts'] / 1000), format=STR_FORMAT_DATETIME2)
-            data['pair'] = pair
+            data['symbol'] = symbol
             # Json
             md_str = json.dumps(data)
 
             # 先发送Tick数据
-            if period == '1min':
-                channel = f'md.{self.market}.tick.{pair}'
+            if period_str == '1min':
+                # channel = f'md.{self.market}.tick.{symbol}'
+                channel = get_channel(self.market, PeriodType.Tick, symbol)
                 self.r.publish(channel, md_str)
 
+            # period_str 1min, 5min, 15min, 30min, 60min, 1day, 1mon, 1week, 1year
+            if period_str == '1min':
+                period = PeriodType.Min1
+            elif period_str == '5min':
+                period = PeriodType.Min5
+            elif period_str == '15min':
+                period = PeriodType.Min15
+            elif period_str == '30min':
+                period = PeriodType.Min30
+            elif period_str == '60min':
+                period = PeriodType.Hour1
+            elif period_str == '1day':
+                period = PeriodType.Day1
+            elif period_str == '1mon':
+                period = PeriodType.Mon1
+            elif period_str == '1week':
+                period = PeriodType.Week1
+            elif period_str == '1year':
+                period = PeriodType.Year1
+
             # 分钟线切换时发送分钟线数据
-            ts_start_last = self.last_ts_start_pair_tick.setdefault((period, pair), None)
+            ts_start_last = self.last_ts_start_pair_tick.setdefault((period_str, symbol), None)
             if ts_start_last is not None and ts_start_last != ts_start:
-                md_str_last = self.last_tick_pair_tick[(period, pair)]
-                channel_min1 = f'md.{self.market}.{period}.{pair}'
+                md_str_last = self.last_tick_pair_tick[(period_str, symbol)]
+                # channel_min1 = f'md.{self.market}.{period}.{pair}'
+                channel_min1 = get_channel(self.market, period, symbol)
                 self.r.publish(channel_min1, md_str_last)
 
-            self.last_ts_start_pair_tick[(period, pair)] = ts_start
-            self.last_tick_pair_tick[(period, pair)] = md_str
+            self.last_ts_start_pair_tick[(period_str, symbol)] = ts_start
+            self.last_tick_pair_tick[(period_str, symbol)] = md_str
 
         elif 'rep' in msg:
             # topic = msg.get('rep')

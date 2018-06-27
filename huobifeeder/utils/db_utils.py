@@ -12,7 +12,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import DeclarativeMeta
 import json
 from datetime import date, datetime, timedelta
-from huobifeeder.utils import date_2_str
+from huobifeeder.utils.fh_utils import date_2_str
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.expression import Insert
 

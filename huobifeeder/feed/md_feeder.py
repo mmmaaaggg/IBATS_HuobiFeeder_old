@@ -8,13 +8,14 @@
 @desc    : 
 """
 import logging
+from requests.exceptions import ProxyError
 from datetime import datetime, timedelta
 import itertools
 from huobitrade.service import HBWebsocket, HBRestAPI
 from huobitrade import setKey
 from config import Config
 from huobifeeder.backend import engine_md
-from huobifeeder.utils import with_db_session
+from huobifeeder.utils.db_utils import with_db_session
 from huobifeeder.backend.orm import SymbolPair
 import time
 from threading import Thread
@@ -169,7 +170,7 @@ class MDFeeder(Thread):
 
             self.fill_history_period(period, model_tot, model_tmp)
 
-    def fill_history_period(self, period, model_tot, model_tmp):
+    def fill_history_period(self, period, model_tot, model_tmp: MDMin1Temp):
         """
         根据数据库中的支持 symbol 补充历史数据
         :param period:
@@ -182,15 +183,15 @@ class MDFeeder(Thread):
                 SymbolPair.market == Config.MARKET_NAME).all()  # , SymbolPair.symbol_partition == 'main'
             pair_datetime_latest_dic = dict(
                 session.query(
-                    model_tmp.pair, func.max(model_tmp.ts_start)
-                ).filter(model_tmp.market == Config.MARKET_NAME).group_by(model_tmp.pair).all()
+                    model_tmp.symbol, func.max(model_tmp.ts_start)
+                ).filter(model_tmp.market == Config.MARKET_NAME).group_by(model_tmp.symbol).all()
             )
 
         # 循环获取每一个交易对的历史数据
         for symbol_info in data:
-            pair = f'{symbol_info.base_currency}{symbol_info.quote_currency}'
-            if pair in pair_datetime_latest_dic:
-                datetime_latest = pair_datetime_latest_dic[pair]
+            symbol = f'{symbol_info.base_currency}{symbol_info.quote_currency}'
+            if symbol in pair_datetime_latest_dic:
+                datetime_latest = pair_datetime_latest_dic[symbol]
                 if period == '1min':
                     second_of_period = 60
                 elif period == '60min':
@@ -200,12 +201,22 @@ class MDFeeder(Thread):
                 else:
                     self.logger.warning(f'{period} 不是有效的周期')
                     continue
-                size = min([2000, int((datetime.now() - datetime_latest).seconds / second_of_period * 2)])
+                size = min([2000, int((datetime.now() - datetime_latest).seconds / second_of_period * 1.2)])
             else:
                 size = 2000
             if size <= 0:
                 continue
-            ret = self.api.get_kline(pair, period, size=size)
+            for n in range(1, 3):
+                try:
+                    ret = self.api.get_kline(symbol, period, size=size)
+                except ProxyError:
+                    self.logger.exception('symbol:%s, period:%s, size=%d', symbol, period, size)
+                    ret = None
+                    time.sleep(5)
+                    continue
+                break
+            if ret is None:
+                continue
             if ret['status'] == 'ok':
                 data_list = ret['data']
                 data_dic_list = []
@@ -214,19 +225,19 @@ class MDFeeder(Thread):
                     data['ts_start'] = ts_start
                     data['market'] = Config.MARKET_NAME
                     data['ts_curr'] = ts_start + timedelta(seconds=59)  # , microseconds=999999
-                    data['pair'] = pair
+                    data['symbol'] = symbol
                     data_dic_list.append(data)
-                self._save_md(data_dic_list, pair, model_tot, model_tmp)
+                self._save_md(data_dic_list, symbol, model_tot, model_tmp)
             else:
                 self.logger.error(ret)
             # 过于频繁方位可能导致链接失败
             time.sleep(5)
 
-    def _save_md(self, data_dic_list, pair, model_tot: MDMin1, model_tmp: MDMin1Temp):
+    def _save_md(self, data_dic_list, symbol, model_tot: MDMin1, model_tmp: MDMin1Temp):
         """
         保存md数据到数据库及文件
         :param data_dic_list:
-        :param pair:
+        :param symbol:
         :param model_tot:
         :param model_tmp:
         :return:
@@ -242,29 +253,29 @@ class MDFeeder(Thread):
             try:
                 # session.execute(self.md_orm_table_insert, data_dic_list)
                 session.execute(model_tmp.__table__.insert(on_duplicate_key_update=True), data_dic_list)
-                self.logger.info('%d 条 %s 数据保存到 %s 完成', md_count, pair, model_tmp.__tablename__)
+                self.logger.info('%d 条 %s 历史数据保存到 %s 完成', md_count, symbol, model_tmp.__tablename__)
                 sql_str = f"""insert into {model_tot.__tablename__} select * from {model_tmp.__tablename__} 
-                where market=:market and pair=:pair 
+                where market=:market and symbol=:symbol 
                 ON DUPLICATE KEY UPDATE open=VALUES(open), high=VALUES(high), low=VALUES(low), close=VALUES(close)
                 , amount=VALUES(amount), vol=VALUES(vol), count=VALUES(count)"""
-                session.execute(sql_str, params={"pair": pair, "market": Config.MARKET_NAME})
+                session.execute(sql_str, params={"symbol": symbol, "market": Config.MARKET_NAME})
                 datetime_latest = session.query(
                     func.max(model_tmp.ts_start).label('ts_start_latest')
                 ).filter(
-                    model_tmp.pair == pair,
+                    model_tmp.symbol == symbol,
                     model_tmp.market == Config.MARKET_NAME
                 ).scalar()
                 # issue:
                 # https://stackoverflow.com/questions/9882358/how-to-delete-rows-from-a-table-using-an-sqlalchemy-query-without-orm
                 delete_count = session.query(model_tmp).filter(
                     model_tmp.market == Config.MARKET_NAME,
-                    model_tmp.pair == pair,
+                    model_tmp.symbol == symbol,
                     model_tmp.ts_start < datetime_latest
                 ).delete()
-                self.logger.debug('%d 条 %s 历史数据被清理，最新数据日期 %s', delete_count, pair, datetime_latest)
+                self.logger.debug('%d 条 %s 历史数据被清理，最新数据日期 %s', delete_count, symbol, datetime_latest)
                 session.commit()
             except:
-                self.logger.exception('%d 条 %s 数据保存到 %s 失败', md_count, pair, model_tot.__tablename__)
+                self.logger.exception('%d 条 %s 数据保存到 %s 失败', md_count, symbol, model_tot.__tablename__)
 
 
 def start_supplier(init_symbols=False, do_fill_history=False) -> MDFeeder:

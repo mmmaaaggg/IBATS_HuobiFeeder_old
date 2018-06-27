@@ -10,8 +10,25 @@
 from redis import StrictRedis, ConnectionPool
 from redis.client import PubSub
 from config import Config
-
+from abat.common import PeriodType
 _redis_client_dic = {}
+
+
+def get_channel(market=None, period: PeriodType=PeriodType.Mon1, symbol=''):
+    """
+    'md.{market}.{period}.{symbol}' or 'md.{period}.{symbol}'
+    通过 redis-cli 可以 PUBSUB CHANNELS 查阅活跃的频道
+    :param market:
+    :param period:
+    :param symbol:
+    :return:
+    """
+    if market:
+        channel_str = f'md.{market}.{period.name}.{symbol}'
+    else:
+        channel_str = f'md.{period.name}.{symbol}'
+    #     md.market.tick.pair
+    return channel_str
 
 
 def get_redis(db=0) -> StrictRedis:

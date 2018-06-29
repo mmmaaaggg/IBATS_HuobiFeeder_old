@@ -16,6 +16,7 @@ from huobitrade import setKey
 from config import Config
 from huobifeeder.backend import engine_md
 from huobifeeder.utils.db_utils import with_db_session
+from huobifeeder.utils.fh_utils import try_n_times
 from huobifeeder.backend.orm import SymbolPair
 import time
 from threading import Thread
@@ -214,15 +215,16 @@ class MDFeeder(Thread):
                 size = 2000
             if size <= 0:
                 continue
-            for n in range(1, 3):
-                try:
-                    ret = self.api.get_kline(symbol, period, size=size)
-                except ProxyError:
-                    self.logger.exception('symbol:%s, period:%s, size=%d', symbol, period, size)
-                    ret = None
-                    time.sleep(5)
-                    continue
-                break
+            ret = self.get_kline(symbol, period, size=size)
+            # for n in range(1, 3):
+            #     try:
+            #         ret = self.api.get_kline(symbol, period, size=size)
+            #     except ProxyError:
+            #         self.logger.exception('symbol:%s, period:%s, size=%d', symbol, period, size)
+            #         ret = None
+            #         time.sleep(5)
+            #         continue
+            #     break
             if ret is None:
                 continue
             if ret['status'] == 'ok':
@@ -239,7 +241,12 @@ class MDFeeder(Thread):
             else:
                 self.logger.error(ret)
             # 过于频繁方位可能导致链接失败
-            time.sleep(5)
+            time.sleep(5)  # 已经包含在 try_n_times 里面
+
+    @try_n_times(5, sleep_time=5, logger=logger)
+    def get_kline(self, symbol, period, size):
+        ret = self.api.get_kline(symbol, period, size=size)
+        return ret
 
     def _save_md(self, data_dic_list, symbol, model_tot: MDMin1, model_tmp: MDMin1Temp):
         """

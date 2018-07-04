@@ -166,7 +166,7 @@ class MDFeeder(Thread):
         while True:
             time.sleep(1)
 
-    def fill_history(self, periods=['1min', '60min', '1day']):
+    def fill_history(self, periods=['1day', '1min', '60min']):
         for period in periods:
             if period == '1min':
                 model_tot, model_tmp = MDMin1, MDMin1Temp
@@ -213,7 +213,7 @@ class MDFeeder(Thread):
                 size = min([2000, int((datetime.now() - datetime_latest).seconds / second_of_period * 1.2)])
             else:
                 size = 2000
-            if size <= 0:
+            if size <= 1:
                 continue
             ret = self.get_kline(symbol, period, size=size)
             # for n in range(1, 3):

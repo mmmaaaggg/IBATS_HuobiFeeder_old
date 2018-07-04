@@ -154,6 +154,17 @@ def init(alter_table=False):
                 sql_str = "ALTER TABLE %s ENGINE = MyISAM" % table_name
                 session.execute(sql_str)
 
+            sql_str = f"""select table_name from information_schema.columns 
+              where table_schema = :table_schema and column_name = 'ts_start' and extra <> ''"""
+            table_name_list = [row_data[0]
+                               for row_data in session.execute(sql_str, params={'table_schema': Config.DB_SCHEMA_MD})]
+
+            for table_name in table_name_list:
+                logger.info('修改 %s 表 ts_start 默认值，剔除 on update 默认项', table_name)
+                # TimeStamp 类型的数据会被自动设置 default: 'CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP'
+                # 需要将 “on update CURRENT_TIMESTAMP”剔除，否则在执行更新时可能会引起错误
+                session.execute(f"ALTER TABLE {table_name} CHANGE COLUMN `ts_start` `ts_start` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP")
+
             # This is an issue  https://www.mail-archive.com/sqlalchemy@googlegroups.com/msg19744.html
             session.execute(f"ALTER TABLE {SymbolPair.__tablename__} CHANGE COLUMN `id` `id` INT(11) NULL AUTO_INCREMENT")
             session.commit()

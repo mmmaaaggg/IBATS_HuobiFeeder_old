@@ -115,7 +115,7 @@ class DBHandler(baseHandler):
         else:
             self.logger.warning(msg)
 
-    @ProducerConsumer(threshold=1000, interval=60, pass_arg_list=True, is_class_method=True)
+    @ProducerConsumer(threshold=2000, interval=60, pass_arg_list=True, is_class_method=True)
     def save_md(self, data_dic_list):
         """
         保存md数据到数据库及文件

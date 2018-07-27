@@ -33,7 +33,7 @@ class SimpleHandler(baseHandler):
                 data = msg.get('tick')
                 # 调整相关属性
                 data['ts_start'] = datetime.fromtimestamp(data.pop('id'))
-                data['market'] = 'huobi'
+                data['market'] = Config.MARKET_NAME  # 'huobi'
                 data['ts_curr'] = datetime.fromtimestamp(msg['ts']/1000)
                 logger.info("data:%s", data)
             else:
@@ -145,7 +145,7 @@ class DBHandler(baseHandler):
 
 class PublishHandler(baseHandler):
 
-    def __init__(self, market='huobi'):
+    def __init__(self, market=Config.MARKET_NAME):
         baseHandler.__init__(self, name=self.__class__.__name__)
         self.market = market
         self.logger = logging.getLogger(self.__class__.__name__)
@@ -176,7 +176,7 @@ class PublishHandler(baseHandler):
             # 调整相关属性
             ts_start = datetime.fromtimestamp(data.pop('id'))
             data['ts_start'] = datetime_2_str(ts_start, format=STR_FORMAT_DATETIME2)
-            data['market'] = 'huobi'
+            data['market'] = Config.MARKET_NAME  # 'huobi'
             data['ts_curr'] = datetime_2_str(datetime.fromtimestamp(msg['ts'] / 1000), format=STR_FORMAT_DATETIME2)
             data['symbol'] = symbol
             # Json

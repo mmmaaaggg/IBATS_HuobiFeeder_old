@@ -8,7 +8,7 @@
 @desc    : 
 """
 import logging
-from requests.exceptions import ProxyError
+# from requests.exceptions import ProxyError
 from datetime import datetime, timedelta
 import itertools
 from huobitrade.service import HBWebsocket, HBRestAPI
@@ -18,6 +18,7 @@ from huobifeeder.backend import engine_md
 from huobifeeder.utils.db_utils import with_db_session
 from huobifeeder.utils.fh_utils import try_n_times
 from huobifeeder.backend.orm import SymbolPair
+from huobifeeder.backend.check import check_redis
 import time
 from threading import Thread
 from huobifeeder.backend.orm import MDTick, MDMin1, MDMin1Temp, MDMin60, MDMin60Temp, MDMinDaily, MDMinDailyTemp
@@ -69,7 +70,7 @@ class MDFeeder(Thread):
             # 获取支持的交易对
             data_dic_list = []
             for d in ret['data']:
-                d['market'] = 'huobi'
+                d['market'] = Config.MARKET_NAME  # 'huobi'
                 data_dic_list.append({key_mapping.setdefault(k, k): v for k, v in d.items()})
 
             with with_db_session(engine_md) as session:
@@ -109,8 +110,10 @@ class MDFeeder(Thread):
             time.sleep(1)
 
         # 数据redis广播
-        handler = PublishHandler(market=Config.MARKET_NAME)
-        self.hb.register_handler(handler)
+        if check_redis():
+            handler = PublishHandler(market=Config.MARKET_NAME)
+            self.hb.register_handler(handler)
+
         server_datetime = self.get_server_datetime()
         logger.info("api.服务期时间 %s 与本地时间差： %f 秒",
                     server_datetime, (datetime.now() - server_datetime).total_seconds())
@@ -152,9 +155,9 @@ class MDFeeder(Thread):
             ret_acc_balance = acc_balance
         return ret_acc_balance
 
-    def get_orders_info(self, symbol, states='submitted'):
-        ret_data = self.api.get_orders_info(symbol=symbol, states=states)
-        return ret_data['data']
+    # def get_orders_info(self, symbol, states='submitted'):
+    #     ret_data = self.api.get_orders_info(symbol=symbol, states=states)
+    #     return ret_data['data']
 
     def run(self):
         self.hb.run()

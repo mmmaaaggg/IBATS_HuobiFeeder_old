@@ -22,7 +22,7 @@ from huobifeeder.backend.check import check_redis
 import time
 from threading import Thread
 from huobifeeder.backend.orm import MDTick, MDMin1, MDMin1Temp, MDMin60, MDMin60Temp, MDMinDaily, MDMinDailyTemp
-from huobifeeder.backend.handler import DBHandler, PublishHandler
+from huobifeeder.backend.handler import DBHandler, PublishHandler, HeartBeatHandler
 from sqlalchemy import func
 
 
@@ -41,6 +41,7 @@ class MDFeeder(Thread):
         self.init_symbols = init_symbols
         self.logger = logging.getLogger(self.__class__.__name__)
         self.do_fill_history = do_fill_history
+        self.heart_beat = HeartBeatHandler()
 
         # 加载数据库表模型（已经废弃，因为需要支持多周期到不同的数据库表）
         # self.table_name = MDMin1Temp.__tablename__
@@ -114,10 +115,17 @@ class MDFeeder(Thread):
             handler = PublishHandler(market=Config.MARKET_NAME)
             self.hb.register_handler(handler)
 
+        # Heart Beat
+        self.hb.register_handler(self.heart_beat)
+
         server_datetime = self.get_server_datetime()
         logger.info("api.服务期时间 %s 与本地时间差： %f 秒",
                     server_datetime, (datetime.now() - server_datetime).total_seconds())
         self.check_state()
+
+    @property
+    def is_working(self):
+        return (datetime.now() - self.heart_beat.time).total_seconds() < 3600
 
     def check_state(self):
         self.check_accounts()
@@ -166,8 +174,8 @@ class MDFeeder(Thread):
         if self.do_fill_history:
             self.logger.info('开始补充历史数据')
             self.fill_history()
-        while True:
-            time.sleep(1)
+        while self.is_working:
+            time.sleep(5)
 
     def fill_history(self, periods=['1day', '1min', '60min']):
         for period in periods:

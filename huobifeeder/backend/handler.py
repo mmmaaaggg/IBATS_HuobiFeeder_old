@@ -225,3 +225,15 @@ class PublishHandler(baseHandler):
             self.logger.info(msg)
         else:
             self.logger.warning(msg)
+
+
+class HeartBeatHandler(baseHandler):
+
+    def __init__(self):
+        baseHandler.__init__(self, name=self.__class__.__name__)
+        self.time = datetime.now()
+
+    def handle(self, msg):
+        if 'ch' in msg:
+            # logging.info("msg:%s", msg)
+            self.time = datetime.now()

@@ -15,6 +15,9 @@ from huobifeeder.feed.md_feeder import start_supplier
 if __name__ == "__main__":
     init(True)
 
-    supplier = start_supplier(init_symbols=True, do_fill_history=True)
-    while supplier.is_alive():
-        time.sleep(1)
+    while True:
+        supplier = start_supplier(init_symbols=True, do_fill_history=True)
+        while supplier.is_working:
+            time.sleep(5)
+
+        supplier.join()

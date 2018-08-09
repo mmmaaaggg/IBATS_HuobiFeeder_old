@@ -123,6 +123,10 @@ class MDFeeder(Thread):
                     server_datetime, (datetime.now() - server_datetime).total_seconds())
         self.check_state()
 
+    def stop(self):
+        self.hb.stop()
+        self.logger.info('结束订阅')
+
     @property
     def is_working(self):
         return (datetime.now() - self.heart_beat.time).total_seconds() < 3600

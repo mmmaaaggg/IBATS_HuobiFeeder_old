@@ -49,17 +49,21 @@ def check_redis():
         # 接收订阅的行情，成功接收后退出
         global _signal
         redis_client = get_redis()
-        pub_sub = redis_client.pubsub()
-        pub_sub.psubscribe(channel)
-        for item in pub_sub.listen():
-            logger.debug("接收成功 %s", item)
-            if item['type'] == 'pmessage':
-                md_dic_str = bytes_2_str(item['data'])
-                md_dic = json.loads(md_dic_str)
-                if "message" in md_dic and "count" in md_dic:
-                    _signal['redis'] = True
-                    logger.debug("接收到消息")
-                    break
+        try:
+            pub_sub = redis_client.pubsub()
+            pub_sub.psubscribe(channel)
+            for item in pub_sub.listen():
+                logger.debug("接收成功 %s", item)
+                if item['type'] == 'pmessage':
+                    md_dic_str = bytes_2_str(item['data'])
+                    md_dic = json.loads(md_dic_str)
+                    if "message" in md_dic and "count" in md_dic:
+                        _signal['redis'] = True
+                        logger.debug("接收到消息")
+                        break
+        except:
+            logger.exception('Redis 检测时发现异常，可能是由于redis没有启动')
+            pass
 
     receiver_t = threading.Thread(target=_receiver, args=(channel,))
     receiver_t.start()

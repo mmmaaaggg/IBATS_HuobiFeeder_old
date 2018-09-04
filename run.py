@@ -17,11 +17,11 @@ logger = logging.getLogger()
 if __name__ == "__main__":
     init(True)
 
-    while True:
-        supplier = start_supplier(init_symbols=True, do_fill_history=True)
-        while supplier.is_working:
-            time.sleep(5)
-        supplier.stop()
-        supplier.join()
-        logger.warning('子线程已经结束，开始新的线程')
-        time.sleep(10)
+    # while True:
+    supplier = start_supplier(init_symbols=True, do_fill_history=True)
+    while supplier.is_working:
+        time.sleep(5)
+    supplier.stop()
+    supplier.join()
+    # logger.warning('子线程已经结束，开始新的线程')
+    # time.sleep(10)

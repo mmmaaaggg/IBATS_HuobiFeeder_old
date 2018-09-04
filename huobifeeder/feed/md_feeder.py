@@ -111,7 +111,7 @@ class MDFeeder(Thread):
             time.sleep(1)
 
         # 数据redis广播
-        if check_redis():
+        if Config.REDIS_PUBLISHER_ENABLE and check_redis():
             handler = PublishHandler(market=Config.MARKET_NAME)
             self.hb.register_handler(handler)
 

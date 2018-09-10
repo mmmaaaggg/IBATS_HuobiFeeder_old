@@ -30,7 +30,32 @@ Linux环境
 #### 配置文件
 
 config.py
+基础配置
 
+1 ) MYSQL数据库用户名、密码
+```python
+DB_SCHEMA_MD = 'bc_md'
+DB_URL_DIC = {
+    DB_SCHEMA_MD: 'mysql://mg:****@10.0.3.66/' + DB_SCHEMA_MD
+}
+```
+2 ) 火币交易所 EXCHANGE_ACCESS_KEY、EXCHANGE_SECRET_KEY
+```python
+# api configuration
+EXCHANGE_ACCESS_KEY = ""
+EXCHANGE_SECRET_KEY = ""
+```
+
+可选配置
+
+1 ) Redis 路径
+```python
+# redis info
+REDIS_PUBLISHER_ENABLE = True
+REDIS_INFO_DIC = {'REDIS_HOST': '192.168.239.131',
+                  'REDIS_PORT': '6379',
+                  }
+```
 #### 启动方法
 
 直接运行 huobifeeder/run.py
@@ -51,6 +76,8 @@ config.py
 >
 > md_daily_bc  日数据
 
+## 实时行情Redis广播服务
+
 channel格式：
 
 ```
@@ -59,7 +86,8 @@ md.{market}.{period}.{symbol}
 #    md.huobi.Min1.ethusdt
 #    md.huobi.Tick.eosusdt
 ```
-
+订阅方式：
+SUBSCRIBE md.huobi.Tick.eosusdt
 
 
 ## 欢迎赞助

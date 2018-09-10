@@ -108,15 +108,18 @@ class MDFeeder(Thread):
                 continue
             handler = DBHandler(period=period, db_model=db_model, save_tick=save_tick)
             self.hb.register_handler(handler)
+            logger.info('注册 %s 处理句柄', handler.name)
             time.sleep(1)
 
         # 数据redis广播
         if Config.REDIS_PUBLISHER_ENABLE and check_redis():
             handler = PublishHandler(market=Config.MARKET_NAME)
             self.hb.register_handler(handler)
+            logger.info('注册 %s 处理句柄', handler.name)
 
         # Heart Beat
         self.hb.register_handler(self.heart_beat)
+        logger.info('注册 %s 处理句柄', self.heart_beat.name)
 
         server_datetime = self.get_server_datetime()
         logger.info("api.服务期时间 %s 与本地时间差： %f 秒",
@@ -283,7 +286,7 @@ class MDFeeder(Thread):
             try:
                 # session.execute(self.md_orm_table_insert, data_dic_list)
                 session.execute(model_tmp.__table__.insert(on_duplicate_key_update=True), data_dic_list)
-                self.logger.info('%d 条 %s 历史数据保存到 %s 完成', md_count, symbol, model_tmp.__tablename__)
+                self.logger.info('%d 条 %s 历史数据 -> %s 完成', md_count, symbol, model_tmp.__tablename__)
                 sql_str = f"""insert into {model_tot.__tablename__} select * from {model_tmp.__tablename__} 
                 where market=:market and symbol=:symbol 
                 ON DUPLICATE KEY UPDATE open=VALUES(open), high=VALUES(high), low=VALUES(low), close=VALUES(close)
@@ -305,7 +308,7 @@ class MDFeeder(Thread):
                 self.logger.debug('%d 条 %s 历史数据被清理，最新数据日期 %s', delete_count, symbol, datetime_latest)
                 session.commit()
             except:
-                self.logger.exception('%d 条 %s 数据保存到 %s 失败', md_count, symbol, model_tot.__tablename__)
+                self.logger.exception('%d 条 %s 数据-> %s 失败', md_count, symbol, model_tot.__tablename__)
 
 
 def start_supplier(init_symbols=False, do_fill_history=False) -> MDFeeder:

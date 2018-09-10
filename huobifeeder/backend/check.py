@@ -39,7 +39,8 @@ def check_redis():
     """
     global _signal
     instrument_id = 'rb1805'
-    channel = get_channel(market=None, period=PeriodType.Year1, symbol=instrument_id)
+    channel = get_channel(market=Config.MARKET_NAME, period=PeriodType.Year1, symbol=instrument_id)
+    logger.info('测试 Channel：%s', channel)
     _signal['redis'] = False
 
     timer_t = threading.Thread(target=_timer, args=(channel,))

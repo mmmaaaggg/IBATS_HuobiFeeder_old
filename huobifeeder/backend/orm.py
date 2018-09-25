@@ -24,8 +24,8 @@ class SymbolPair(BaseModel):
     market = Column(String(10), primary_key=True)
     base_currency = Column(String(10), primary_key=True)
     quote_currency = Column(String(10), primary_key=True)
-    price_precision = Column(DOUBLE)
-    amount_precision = Column(DOUBLE)
+    price_precision = Column(Integer)
+    amount_precision = Column(Integer)
     symbol_partition = Column(String(12))
     __table_args__ = (
         UniqueConstraint('base_currency', 'quote_currency'),

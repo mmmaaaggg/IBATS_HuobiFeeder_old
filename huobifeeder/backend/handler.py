@@ -138,12 +138,96 @@ class DBHandler(baseHandler):
         try:
             self.session.execute(self.md_orm_table_insert, data_dic_list)
             self.session.commit()
-            self.logger.info('%d 条数据保存到 %s 完成', md_count, self.table_name)
+            self.logger.info('%d 条实时行情 -> %s 完成', md_count, self.table_name)
         except:
-            self.logger.exception('%d 条数据保存到 %s 失败', md_count, self.table_name)
+            self.logger.exception('%d 条实时行情 -> %s 失败', md_count, self.table_name)
 
 
 class PublishHandler(baseHandler):
+
+    def __init__(self, market=Config.MARKET_NAME):
+        baseHandler.__init__(self, name=self.__class__.__name__)
+        self.market = market
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.r = get_redis()
+        # 记录上一个tick的 st_start 用于判断是否开始分钟切换，key 是 (period, pair)
+        self.last_ts_start_pair_tick = {}
+        self.last_tick_pair_tick = {}
+
+    def handle(self, msg):
+        """
+        收到数据后，tick数据直接发送，
+        channel：md.market.tick.pair
+        channel：md.market.min1.pair 每个分钟时点切换时，发送一次分钟线数据
+        例如：
+        md.huobi.tick.ethusdt
+        md.huobi.1min.ethusdt
+        通过 redis-cli 可以 PUBSUB CHANNELS 查阅活跃的频道
+        PSUBSCRIBE pattern [pattern ...]  查看频道内容
+        SUBSCRIBE channel [channel ...]  查看频道内容
+        :param msg:
+        :return:
+        """
+        # TODO: 设定一个定期检查机制，只发送订阅的品种，降低网络负载
+        if 'ch' in msg:
+            topic = msg.get('ch')
+            _, symbol, _, period_str = topic.split('.')
+            data = msg.get('tick')
+            # 调整相关属性
+            ts_start = datetime.fromtimestamp(data.pop('id'))
+            data['ts_start'] = datetime_2_str(ts_start, format=STR_FORMAT_DATETIME2)
+            data['market'] = Config.MARKET_NAME  # 'huobi'
+            data['ts_curr'] = datetime_2_str(datetime.fromtimestamp(msg['ts'] / 1000), format=STR_FORMAT_DATETIME2)
+            data['symbol'] = symbol
+            # Json
+            md_str = json.dumps(data)
+
+            # 先发送Tick数据
+            if period_str == '1min':
+                # channel = f'md.{self.market}.tick.{symbol}'
+                channel = get_channel(self.market, PeriodType.Tick, symbol)
+                self.r.publish(channel, md_str)
+
+            # period_str 1min, 5min, 15min, 30min, 60min, 1day, 1mon, 1week, 1year
+            if period_str == '1min':
+                period = PeriodType.Min1
+            elif period_str == '5min':
+                period = PeriodType.Min5
+            elif period_str == '15min':
+                period = PeriodType.Min15
+            elif period_str == '30min':
+                period = PeriodType.Min30
+            elif period_str == '60min':
+                period = PeriodType.Hour1
+            elif period_str == '1day':
+                period = PeriodType.Day1
+            elif period_str == '1mon':
+                period = PeriodType.Mon1
+            elif period_str == '1week':
+                period = PeriodType.Week1
+            elif period_str == '1year':
+                period = PeriodType.Year1
+
+            # 分钟线切换时发送分钟线数据
+            ts_start_last = self.last_ts_start_pair_tick.setdefault((period_str, symbol), None)
+            if ts_start_last is not None and ts_start_last != ts_start:
+                md_str_last = self.last_tick_pair_tick[(period_str, symbol)]
+                # channel_min1 = f'md.{self.market}.{period}.{pair}'
+                channel_min1 = get_channel(self.market, period, symbol)
+                self.r.publish(channel_min1, md_str_last)
+
+            self.last_ts_start_pair_tick[(period_str, symbol)] = ts_start
+            self.last_tick_pair_tick[(period_str, symbol)] = md_str
+
+        elif 'rep' in msg:
+            # topic = msg.get('rep')
+            # data = msg.get('data')
+            self.logger.info(msg)
+        else:
+            self.logger.warning(msg)
+
+
+class FileHandler(baseHandler):
 
     def __init__(self, market=Config.MARKET_NAME):
         baseHandler.__init__(self, name=self.__class__.__name__)

@@ -120,7 +120,8 @@ SUBSCRIBE md.huobi.Tick.eosusdt
     sudo more debian.cnf
     ```
     出现类似这样的东西
-    > \# Automatically generated for Debian scripts. DO NOT TOUCH!
+    ```bash
+    # Automatically generated for Debian scripts. DO NOT TOUCH!
     [client]
     host     = localhost
     user     = debian-sys-maint
@@ -131,6 +132,7 @@ SUBSCRIBE md.huobi.Tick.eosusdt
     user     = debian-sys-maint
     password = j1bsABuuDRGKCV5s
     socket   = /var/run/mysqld/mysqld.sock
+    ```
 
     以debian-sys-maint为用户名登录，密码就是debian.cnf里那个 password = 后面的东西。
     使用mysql -u debian-sys-maint -p 进行登录。

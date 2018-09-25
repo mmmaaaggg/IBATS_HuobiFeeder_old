@@ -15,7 +15,7 @@
 
 > Python 3.6 
 >
-> MySQL 5.7  [配置方法总结了一下，见下文][1]
+> MySQL 5.7  [配置方法总结了一下，见下文](#mysql-配置方法)
 >
 > Redis 3.0.6 
 
@@ -168,6 +168,3 @@ SUBSCRIBE md.huobi.Tick.eosusdt
     flush privileges; #刷新系统权限表
     ```
  
-
-
-  [1]: ##%20MySQL%20%E9%85%8D%E7%BD%AE%E6%96%B9%E6%B3%95

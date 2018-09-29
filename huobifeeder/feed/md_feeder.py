@@ -89,30 +89,31 @@ class MDFeeder(Thread):
             self.hb.sub_dict['ethusdt60'] = {'id': '', 'topic': 'market.ethusdt.kline.60min'}
 
         # handler = SimpleHandler('simple handler')
-        # Tick 数据插入
-        handler = DBHandler(period='1min', db_model=MDTick, save_tick=True)
-        self.hb.register_handler(handler)
-        time.sleep(1)
-        # 其他周期数据插入
-        for period in periods:
-            save_tick = False
-            if period == '1min':
-                db_model = MDMin1
-            elif period == '60min':
-                db_model = MDMin60
-                # save_tick = True
-            elif period == '1day':
-                db_model = MDMinDaily
-            else:
-                self.logger.warning(f'{period} 不是有效的周期')
-                continue
-            handler = DBHandler(period=period, db_model=db_model, save_tick=save_tick)
+        if Config.ENABLE_DB_HANDLER:
+            # Tick 数据插入
+            handler = DBHandler(period='1min', db_model=MDTick, save_tick=True)
             self.hb.register_handler(handler)
-            logger.info('注册 %s 处理句柄', handler.name)
             time.sleep(1)
+            # 其他周期数据插入
+            for period in periods:
+                save_tick = False
+                if period == '1min':
+                    db_model = MDMin1
+                elif period == '60min':
+                    db_model = MDMin60
+                    # save_tick = True
+                elif period == '1day':
+                    db_model = MDMinDaily
+                else:
+                    self.logger.warning(f'{period} 不是有效的周期')
+                    continue
+                handler = DBHandler(period=period, db_model=db_model, save_tick=save_tick)
+                self.hb.register_handler(handler)
+                logger.info('注册 %s 处理句柄', handler.name)
+                time.sleep(1)
 
         # 数据redis广播
-        if Config.REDIS_PUBLISHER_ENABLE and check_redis():
+        if Config.ENABLE_REDIS_HANDLER and check_redis():
             handler = PublishHandler(market=Config.MARKET_NAME)
             self.hb.register_handler(handler)
             logger.info('注册 %s 处理句柄', handler.name)

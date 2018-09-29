@@ -7,7 +7,7 @@
 @contact : mmmaaaggg@163.com
 @desc    :
 """
-from sqlalchemy import Column, Integer, String, UniqueConstraint, TIMESTAMP
+from sqlalchemy import Column, Integer, String, UniqueConstraint, TIMESTAMP, text
 from sqlalchemy.dialects.mysql import DOUBLE
 from sqlalchemy.ext.declarative import declarative_base
 from huobifeeder.utils.db_utils import with_db_session
@@ -38,7 +38,7 @@ class MDTick(BaseModel):
     market = Column(String(10), primary_key=True)
     symbol = Column(String(10), primary_key=True)
     ts_start = Column(TIMESTAMP)
-    ts_curr = Column(TIMESTAMP, primary_key=True)
+    ts_curr = Column(TIMESTAMP, primary_key=True, server_default=text('CURRENT_TIMESTAMP'))
     open = Column(DOUBLE)
     high = Column(DOUBLE)
     low = Column(DOUBLE)
@@ -52,7 +52,7 @@ class MDMin1(BaseModel):
     __tablename__ = 'md_min1_bc'
     market = Column(String(10), primary_key=True)
     symbol = Column(String(10), primary_key=True)
-    ts_start = Column(TIMESTAMP, primary_key=True)
+    ts_start = Column(TIMESTAMP, primary_key=True, server_default=text('CURRENT_TIMESTAMP'))
     ts_curr = Column(TIMESTAMP)
     open = Column(DOUBLE)
     high = Column(DOUBLE)
@@ -67,7 +67,7 @@ class MDMin1Temp(BaseModel):
     __tablename__ = 'md_min1_bc_temp'
     market = Column(String(10), primary_key=True)
     symbol = Column(String(10), primary_key=True)
-    ts_start = Column(TIMESTAMP, primary_key=True)
+    ts_start = Column(TIMESTAMP, primary_key=True, server_default=text('CURRENT_TIMESTAMP'))
     ts_curr = Column(TIMESTAMP)
     open = Column(DOUBLE)
     high = Column(DOUBLE)
@@ -82,7 +82,7 @@ class MDMin60(BaseModel):
     __tablename__ = 'md_min60_bc'
     market = Column(String(10), primary_key=True)
     symbol = Column(String(10), primary_key=True)
-    ts_start = Column(TIMESTAMP, primary_key=True)
+    ts_start = Column(TIMESTAMP, primary_key=True, server_default=text('CURRENT_TIMESTAMP'))
     ts_curr = Column(TIMESTAMP)
     open = Column(DOUBLE)
     high = Column(DOUBLE)
@@ -97,7 +97,7 @@ class MDMin60Temp(BaseModel):
     __tablename__ = 'md_min60_bc_temp'
     market = Column(String(10), primary_key=True)
     symbol = Column(String(10), primary_key=True)
-    ts_start = Column(TIMESTAMP, primary_key=True)
+    ts_start = Column(TIMESTAMP, primary_key=True, server_default=text('CURRENT_TIMESTAMP'))
     ts_curr = Column(TIMESTAMP)
     open = Column(DOUBLE)
     high = Column(DOUBLE)
@@ -112,7 +112,7 @@ class MDMinDaily(BaseModel):
     __tablename__ = 'md_daily_bc'
     market = Column(String(10), primary_key=True)
     symbol = Column(String(10), primary_key=True)
-    ts_start = Column(TIMESTAMP, primary_key=True)
+    ts_start = Column(TIMESTAMP, primary_key=True, server_default=text('CURRENT_TIMESTAMP'))
     ts_curr = Column(TIMESTAMP)
     open = Column(DOUBLE)
     high = Column(DOUBLE)
@@ -127,7 +127,7 @@ class MDMinDailyTemp(BaseModel):
     __tablename__ = 'md_daily_bc_temp'
     market = Column(String(10), primary_key=True)
     symbol = Column(String(10), primary_key=True)
-    ts_start = Column(TIMESTAMP, primary_key=True)
+    ts_start = Column(TIMESTAMP, primary_key=True, server_default=text('CURRENT_TIMESTAMP'))
     ts_curr = Column(TIMESTAMP)
     open = Column(DOUBLE)
     high = Column(DOUBLE)

@@ -160,12 +160,12 @@ SUBSCRIBE md.huobi.Tick.eosusdt
  5. 创建数据库 bc_md
 
     ```mysql
-    CREATE DATABASE `md_integration` default charset utf8 collate utf8_general_ci;
+    CREATE DATABASE `bc_md` default charset utf8 collate utf8_general_ci;
     ```
  6. 授权
 
     ```mysql
-    grant all privileges on md_integration.* to 'mg'@'localhost' identified by 'Abcd1234'; 
+    grant all privileges on bc_md.* to 'mg'@'localhost' identified by 'Abcd1234'; 
     
     flush privileges; #刷新系统权限表
     ```

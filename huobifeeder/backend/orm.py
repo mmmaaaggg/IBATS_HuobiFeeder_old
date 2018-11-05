@@ -142,9 +142,9 @@ def init(alter_table=False):
     BaseModel.metadata.create_all(engine_md)
     if alter_table:
         with with_db_session(engine=engine_md) as session:
+            show_status_sql_str = f"show table status from {Config.DB_SCHEMA_MD} where name=:table_name"
             for table_name, _ in BaseModel.metadata.tables.items():
-                sql_str = f"show table status from {Config.DB_SCHEMA_MD} where name=:table_name"
-                row_data = session.execute(sql_str, params={'table_name': table_name}).first()
+                row_data = session.execute(show_status_sql_str, params={'table_name': table_name}).first()
                 if row_data is None:
                     continue
                 if row_data[1].lower() == 'myisam':

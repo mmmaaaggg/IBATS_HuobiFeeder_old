@@ -232,7 +232,7 @@ class MDFeeder(Thread):
                 size = min([2000, int((datetime.now() - datetime_latest).seconds / second_of_period * 1.2)])
             else:
                 size = 2000
-            if size <= 1:
+            if size <= 0:
                 continue
             ret = self.get_kline(symbol, period, size=size)
             # for n in range(1, 3):
@@ -258,7 +258,8 @@ class MDFeeder(Thread):
                     data_dic_list.append(data)
                 self._save_md(data_dic_list, symbol, model_tot, model_tmp)
             else:
-                self.logger.error(ret)
+                self.logger.error("get_kline(symbol='%s', period='%s', size='%d') got error:%s",
+                                  symbol, period, size, ret)
             # 过于频繁方位可能导致链接失败
             time.sleep(5)  # 已经包含在 try_n_times 里面
 
